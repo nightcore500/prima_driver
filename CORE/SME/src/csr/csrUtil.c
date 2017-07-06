@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -64,10 +64,10 @@
 #include "smeQosInternal.h"
 #include "wlan_qct_wda.h"
 
-#ifdef FEATURE_WLAN_CCX
+#if defined(FEATURE_WLAN_CCX) && !defined(FEATURE_WLAN_CCX_UPLOAD)
 #include "vos_utils.h"
 #include "csrCcx.h"
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_CCX && !FEATURE_WLAN_CCX_UPLOAD*/
 
 tANI_U8 csrWpaOui[][ CSR_WPA_OUI_SIZE ] = {
     { 0x00, 0x50, 0xf2, 0x00 },
@@ -5900,7 +5900,7 @@ tSirResultCodes csrGetDeAuthRspStatusCode( tSirSmeDeauthRsp *pSmeRsp )
     tANI_U8 *pBuffer = (tANI_U8 *)pSmeRsp;
     tANI_U32 ret;
 
-    pBuffer += (sizeof(tANI_U16) + sizeof(tANI_U16) + sizeof(tSirMacAddr));
+    pBuffer += (sizeof(tANI_U16) + sizeof(tANI_U16) + sizeof(tANI_U8) + sizeof(tANI_U16));
     //tSirResultCodes is an enum, assuming is 32bit
     //If we cannot make this assumption, use copymemory
     pal_get_U32( pBuffer, &ret );
@@ -6106,7 +6106,13 @@ v_REGDOMAIN_t csrGetCurrentRegulatoryDomain(tpAniSirGlobal pMac)
 }
 
 
-eHalStatus csrGetRegulatoryDomainForCountry(tpAniSirGlobal pMac, tANI_U8 *pCountry, v_REGDOMAIN_t *pDomainId)
+eHalStatus csrGetRegulatoryDomainForCountry
+(
+tpAniSirGlobal pMac,
+tANI_U8 *pCountry,
+v_REGDOMAIN_t *pDomainId,
+v_CountryInfoSource_t source
+)
 {
     eHalStatus status = eHAL_STATUS_INVALID_PARAMETER;
     VOS_STATUS vosStatus;
@@ -6117,7 +6123,10 @@ eHalStatus csrGetRegulatoryDomainForCountry(tpAniSirGlobal pMac, tANI_U8 *pCount
     {
         countryCode[0] = pCountry[0];
         countryCode[1] = pCountry[1];
-        vosStatus = vos_nv_getRegDomainFromCountryCode( &domainId, countryCode );
+        vosStatus = vos_nv_getRegDomainFromCountryCode(&domainId,
+                                                       countryCode,
+                                                       source);
+
         if( VOS_IS_STATUS_SUCCESS(vosStatus) )
         {
             if( pDomainId )
@@ -6165,10 +6174,15 @@ tANI_BOOLEAN csrMatchCountryCode( tpAniSirGlobal pMac, tANI_U8 *pCountry, tDot11
             //Make sure this country is recognizable
             if( pIes->Country.present )
             {
-                status = csrGetRegulatoryDomainForCountry( pMac, pIes->Country.country, &domainId );
+                status = csrGetRegulatoryDomainForCountry(pMac,
+                                           pIes->Country.country,
+                                           &domainId, COUNTRY_QUERY);
                 if( !HAL_STATUS_SUCCESS( status ) )
                 {
-                     status = csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCode11d,(v_REGDOMAIN_t *) &domainId );
+                     status = csrGetRegulatoryDomainForCountry(pMac,
+                                                 pMac->scan.countryCode11d,
+                                                 (v_REGDOMAIN_t *) &domainId,
+                                                 COUNTRY_QUERY);
                      if( !HAL_STATUS_SUCCESS( status ) )
                      {
                            fRet = eANI_BOOLEAN_FALSE;

@@ -6,18 +6,14 @@ else
 	KERNEL_BUILD := 0
 endif
 
-
-
 ifeq ($(KERNEL_BUILD),1)
 	# These are provided in Android-based builds
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
 	WLAN_ROOT := drivers/staging/prima
-  CONFIG_ENABLE_LINUX_REG := y
 endif
 
-
-ifeq ($(KERNEL_BUILD), 0)
+ifeq ($(KERNEL_BUILD),0)
 	# These are configurable via Kconfig for kernel-based builds
 	# Need to explicitly configure for Android-based builds
 
@@ -39,19 +35,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Fast Transition (11r) feature
 	CONFIG_QCOM_VOWIFI_11R := y
 
-	#Flag to enable Protected Managment Frames (11w) feature
-	ifneq ($(CONFIG_PRONTO_WLAN),)
-	CONFIG_WLAN_FEATURE_11W := y
-	endif
-
-	#Flag to enable new Linux Regulatory implementation
-	CONFIG_ENABLE_LINUX_REG := y
-
 endif
-
-# To enable CCX upload, dependent config
-# CONFIG_QCOM_CCX must be enabled.
-CONFIG_QCOM_CCX_UPLOAD := n
 
 # Feature flags which are not (currently) configurable via Kconfig
 
@@ -59,7 +43,7 @@ CONFIG_QCOM_CCX_UPLOAD := n
 BUILD_DEBUG_VERSION := 1
 
 #Enable this flag to build driver in diag version
-BUILD_DIAG_VERSION := 1
+BUILD_DIAG_VERSION := 0
 
 #Do we panic on bug?  default is to warn
 PANIC_ON_BUG := 1
@@ -129,15 +113,14 @@ HDD_INC := 	-I$(WLAN_ROOT)/$(HDD_INC_DIR) \
 HDD_OBJS := 	$(HDD_SRC_DIR)/bap_hdd_main.o \
 		$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_cfg.o \
-		$(HDD_SRC_DIR)/wlan_hdd_debugfs.o \
 		$(HDD_SRC_DIR)/wlan_hdd_dev_pwr.o \
 		$(HDD_SRC_DIR)/wlan_hdd_dp_utils.o \
 		$(HDD_SRC_DIR)/wlan_hdd_early_suspend.o \
 		$(HDD_SRC_DIR)/wlan_hdd_ftm.o \
 		$(HDD_SRC_DIR)/wlan_hdd_hostapd.o \
+		$(HDD_SRC_DIR)/wlan_hdd_oemdata.o \
 		$(HDD_SRC_DIR)/wlan_hdd_main.o \
 		$(HDD_SRC_DIR)/wlan_hdd_mib.o \
-		$(HDD_SRC_DIR)/wlan_hdd_oemdata.o \
 		$(HDD_SRC_DIR)/wlan_hdd_scan.o \
 		$(HDD_SRC_DIR)/wlan_hdd_softap_tx_rx.o \
 		$(HDD_SRC_DIR)/wlan_hdd_tx_rx.o \
@@ -215,9 +198,7 @@ MAC_LIM_OBJS := $(MAC_SRC_DIR)/pe/lim/limAIDmgmt.o \
 		$(MAC_SRC_DIR)/pe/lim/limUtils.o
 
 ifeq ($(CONFIG_QCOM_CCX),y)
-ifneq ($(CONFIG_QCOM_CCX_UPLOAD),y)
 MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/limProcessCcxFrame.o
-endif
 endif
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
@@ -276,9 +257,7 @@ SME_CSR_OBJS := $(SME_SRC_DIR)/csr/csrApiRoam.o \
 		$(SME_SRC_DIR)/csr/csrUtil.o
 
 ifeq ($(CONFIG_QCOM_CCX),y)
-ifneq ($(CONFIG_QCOM_CCX_UPLOAD),y)
 SME_CSR_OBJS += $(SME_SRC_DIR)/csr/csrCcx.o
-endif
 endif
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
@@ -292,8 +271,7 @@ SME_PMC_OBJS := $(SME_SRC_DIR)/pmc/pmcApi.o \
 SME_QOS_OBJS := $(SME_SRC_DIR)/QoS/sme_Qos.o
 
 SME_CMN_OBJS := $(SME_SRC_DIR)/sme_common/sme_Api.o \
-		$(SME_SRC_DIR)/sme_common/sme_FTApi.o \
-		$(SME_SRC_DIR)/sme_common/sme_Trace.o
+		$(SME_SRC_DIR)/sme_common/sme_FTApi.o
 
 SME_BTC_OBJS := $(SME_SRC_DIR)/btc/btcApi.o
 
@@ -359,6 +337,10 @@ SYS_OBJS :=	$(SYS_COMMON_SRC_DIR)/wlan_qct_sys.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/utilsApi.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/utilsParser.o
 
+ifeq ($(CONFIG_QCOM_CCX),y)
+SYS_OBJS += $(SYS_LEGACY_SRC_DIR)/utils/src/limCcxparserApi.o
+endif
+
 ############ TL ############
 TL_DIR :=	CORE/TL
 TL_INC_DIR :=	$(TL_DIR)/inc
@@ -394,10 +376,7 @@ VOSS_OBJS :=    $(VOSS_SRC_DIR)/vos_api.o \
 		$(VOSS_SRC_DIR)/vos_timer.o \
 		$(VOSS_SRC_DIR)/vos_trace.o \
 		$(VOSS_SRC_DIR)/vos_types.o \
-                $(VOSS_SRC_DIR)/vos_utils.o \
-                $(VOSS_SRC_DIR)/wlan_nv_parser.o \
-                $(VOSS_SRC_DIR)/wlan_nv_stream_read.o \
-                $(VOSS_SRC_DIR)/wlan_nv_template_builtin.o
+		$(VOSS_SRC_DIR)/vos_utils.o
 
 ifeq ($(BUILD_DIAG_VERSION),1)
 VOSS_OBJS += $(VOSS_SRC_DIR)/vos_diag.o
@@ -533,16 +512,10 @@ CDEFINES :=	-DANI_BUS_TYPE_PLATFORM=1 \
 		-DWLAN_FEATURE_P2P_DEBUG \
 		-DWLAN_ENABLE_AGEIE_ON_SCAN_RESULTS \
 		-DWLANTL_DEBUG\
-		-DWLAN_NS_OFFLOAD \
 		-DWLAN_ACTIVEMODE_OFFLOAD_FEATURE \
-		-DWLAN_FEATURE_HOLD_RX_WAKELOCK \
+        	-DWLAN_FEATURE_HOLD_RX_WAKELOCK \
 		-DWLAN_SOFTAP_VSTA_FEATURE \
-		-DWLAN_FEATURE_ROAM_SCAN_OFFLOAD \
-		-DWLAN_FEATURE_GTK_OFFLOAD \
-		-DWLAN_WAKEUP_EVENTS \
-	        -DWLAN_KD_READY_NOTIFIER \
-		-DFEATURE_WLAN_BATCH_SCAN \
-		-DFEATURE_WLAN_LPHB
+                -DWLAN_FEATURE_ROAM_SCAN_OFFLOAD
 
 ifneq ($(CONFIG_PRONTO_WLAN),)
 CDEFINES += -DWCN_PRONTO
@@ -553,7 +526,6 @@ ifeq ($(BUILD_DEBUG_VERSION),1)
 CDEFINES +=	-DWLAN_DEBUG \
 		-DTRACE_RECORD \
 		-DLIM_TRACE_RECORD \
-		-DSME_TRACE_RECORD \
 		-DPE_DEBUG_LOGW \
 		-DPE_DEBUG_LOGE \
 		-DDEBUG
@@ -575,9 +547,6 @@ endif
 
 ifeq ($(CONFIG_QCOM_CCX),y)
 CDEFINES += -DFEATURE_WLAN_CCX
-ifeq ($(CONFIG_QCOM_CCX_UPLOAD),y)
-CDEFINES += -DFEATURE_WLAN_CCX_UPLOAD
-endif
 endif
 
 #normally, TDLS negative behavior is not needed
@@ -619,10 +588,6 @@ endif
 # enable the MAC Address auto-generation feature
 CDEFINES += -DWLAN_AUTOGEN_MACADDR_FEATURE
 
-ifeq ($(CONFIG_WLAN_FEATURE_11W),y)
-CDEFINES += -DWLAN_FEATURE_11W
-endif
-
 ifneq (, $(filter msm8960, $(BOARD_PLATFORM)))
 EXTRA_CFLAGS += -march=armv7-a
 CDEFINES += -DMSM_PLATFORM_8960
@@ -659,12 +624,8 @@ ifeq ($(findstring opensource, $(WLAN_ROOT)), opensource)
 CDEFINES += -DWLAN_OPEN_SOURCE
 endif
 
-ifeq ($(CONFIG_ENABLE_LINUX_REG), y)
-CDEFINES += -DCONFIG_ENABLE_LINUX_REG
-endif
-
 # Fix build for GCC 4.7
-EXTRA_CFLAGS += -Wno-unused-function
+EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 
@@ -672,3 +633,4 @@ KBUILD_CPPFLAGS += $(CDEFINES)
 obj-$(CONFIG_PRIMA_WLAN) += $(MODNAME).o
 obj-$(CONFIG_PRONTO_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
+

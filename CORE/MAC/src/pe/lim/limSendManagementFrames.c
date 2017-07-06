@@ -67,9 +67,6 @@
 #include "rrmApi.h"
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-#include <limCcxparserApi.h>
-#endif
 #include "wlan_qct_wda.h"
 #ifdef WLAN_FEATURE_11W
 #include "dot11fdefs.h"
@@ -2192,12 +2189,6 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
 #endif
 
 #ifdef FEATURE_WLAN_CCX
-    /* CCX Version IE will be included in association request
-       when CCX is enabled on DUT through ini */
-    if (psessionEntry->pLimJoinReq->isCCXFeatureIniEnabled)
-    {
-        PopulateDot11fCCXVersion(&pFrm->CCXVersion);
-    }
     /* For CCX Associations fill the CCX IEs */
     if (psessionEntry->isCCXconnection &&
         psessionEntry->pLimJoinReq->isCCXFeatureIniEnabled)
@@ -2205,6 +2196,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
 #ifndef FEATURE_DISABLE_RM
         PopulateDot11fCCXRadMgmtCap(&pFrm->CCXRadMgmtCap);
 #endif
+        PopulateDot11fCCXVersion(&pFrm->CCXVersion);
     }
 #endif
 
@@ -2528,12 +2520,6 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
     }
 
 #ifdef FEATURE_WLAN_CCX
-    /* CCX Version IE will be included in reassociation request
-       when CCX is enabled on DUT through ini */
-    if (psessionEntry->pLimReAssocReq->isCCXFeatureIniEnabled)
-    {
-        PopulateDot11fCCXVersion(&frm.CCXVersion);
-    }
     // For CCX Associations fill the CCX IEs
     if (psessionEntry->isCCXconnection &&
         psessionEntry->pLimReAssocReq->isCCXFeatureIniEnabled)
@@ -2541,6 +2527,7 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
 #ifndef FEATURE_DISABLE_RM
         PopulateDot11fCCXRadMgmtCap(&frm.CCXRadMgmtCap);
 #endif
+        PopulateDot11fCCXVersion(&frm.CCXVersion);
     }
 #endif //FEATURE_WLAN_CCX
 #endif //FEATURE_WLAN_CCX || FEATURE_WLAN_LFR
@@ -3483,6 +3470,50 @@ eHalStatus limSendDeauthCnf(tpAniSirGlobal pMac)
 
         /// Receive path cleanup with dummy packet
         limCleanupRxPath(pMac, pStaDs,psessionEntry);
+
+#ifdef WLAN_FEATURE_VOWIFI_11R
+        if ( (psessionEntry->limSystemRole == eLIM_STA_ROLE ) &&
+            (
+#ifdef FEATURE_WLAN_ESE
+            (psessionEntry->isESEconnection ) ||
+#endif
+#ifdef FEATURE_WLAN_LFR
+            (psessionEntry->isFastRoamIniFeatureEnabled ) ||
+#endif
+        (psessionEntry->is11Rconnection )))
+        {
+            PELOGE(limLog(pMac, LOGE,
+            FL("FT Preauth Session (%p,%d) Cleanup"
+                " Deauth reason %d Trigger = %d"),
+            psessionEntry, psessionEntry->peSessionId,
+            pMlmDeauthReq->reasonCode,
+            pMlmDeauthReq->deauthTrigger););
+            limFTCleanup(pMac);
+        }
+        else
+        {
+            PELOGE(limLog(pMac, LOGE,
+            FL("No FT Preauth Session Cleanup in role %d"
+#ifdef FEATURE_WLAN_ESE
+                " isESE %d"
+#endif
+#ifdef FEATURE_WLAN_LFR
+                " isLFR %d"
+#endif
+                " is11r %d, Deauth reason %d Trigger = %d"),
+            psessionEntry->limSystemRole,
+#ifdef FEATURE_WLAN_ESE
+            psessionEntry->isESEconnection,
+#endif
+#ifdef FEATURE_WLAN_LFR
+            psessionEntry->isFastRoamIniFeatureEnabled,
+#endif
+            psessionEntry->is11Rconnection,
+            pMlmDeauthReq->reasonCode,
+            pMlmDeauthReq->deauthTrigger););
+        }
+#endif
+
         /// Free up buffer allocated for mlmDeauthReq
         vos_mem_free(pMlmDeauthReq);
         pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq = NULL;
@@ -5085,7 +5116,16 @@ tSirRetStatus limSendAddBARsp( tpAniSirGlobal pMac,
       frmAddBARsp.AddBAParameterSet.tid = pMlmAddBARsp->baTID;
       frmAddBARsp.AddBAParameterSet.policy = pMlmAddBARsp->baPolicy;
       frmAddBARsp.AddBAParameterSet.bufferSize = pMlmAddBARsp->baBufferSize;
-      frmAddBARsp.AddBAParameterSet.amsduSupported = psessionEntry->amsduSupportedInBA;
+
+      if(psessionEntry->isAmsduSupportInAMPDU)
+      {
+         frmAddBARsp.AddBAParameterSet.amsduSupported =
+                                          psessionEntry->amsduSupportedInBA;
+      }
+      else
+      {
+         frmAddBARsp.AddBAParameterSet.amsduSupported = 0;
+      }
 
       // BA timeout
       // 0 - indicates no BA timeout

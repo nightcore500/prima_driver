@@ -34,20 +34,20 @@ else
 endif
 
 ifeq ($(call is-android-codename,JELLY_BEAN),true)
-       DLKM_DIR := $(TOP)/device/qcom/common/dlkm
+       DLKM_DIR := $(TOP)/device/htc/common/dlkm
 else
        DLKM_DIR := build/dlkm
 endif
 
-ifeq ($(WLAN_PROPRIETARY),1)
+#ifeq ($(WLAN_PROPRIETARY),1)
 # For the proprietary driver the firmware files are handled here
-include $(CLEAR_VARS)
-LOCAL_MODULE       := WCNSS_qcom_wlan_nv.bin
-LOCAL_MODULE_TAGS  := optional
-LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH  := $(PRODUCT_OUT)/persist
-LOCAL_SRC_FILES    := firmware_bin/$(LOCAL_MODULE)
-include $(BUILD_PREBUILT)
+#include $(CLEAR_VARS)
+#LOCAL_MODULE       := WCNSS_qcom_wlan_nv.bin
+#LOCAL_MODULE_TAGS  := optional
+#LOCAL_MODULE_CLASS := ETC
+#LOCAL_MODULE_PATH  := $(PRODUCT_OUT)/persist
+#LOCAL_SRC_FILES    := firmware_bin/$(LOCAL_MODULE)
+#include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE       := WCNSS_cfg.dat
@@ -57,15 +57,17 @@ LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/firmware/wlan/prima
 LOCAL_SRC_FILES    := firmware_bin/$(LOCAL_MODULE)
 include $(BUILD_PREBUILT)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE       := WCNSS_qcom_cfg.ini
-LOCAL_MODULE_TAGS  := optional
-LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH  := $(PRODUCT_OUT)/persist
-LOCAL_SRC_FILES    := firmware_bin/$(LOCAL_MODULE)
-include $(BUILD_PREBUILT)
 
-endif
+
+  include $(CLEAR_VARS)
+  LOCAL_MODULE       := WCNSS_qcom_cfg.ini
+  LOCAL_MODULE_TAGS  := optional
+  LOCAL_MODULE_CLASS := ETC
+  LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/firmware/wlan/prima
+  LOCAL_SRC_FILES    := firmware_bin/$(LOCAL_MODULE)
+  include $(BUILD_PREBUILT)
+
+#endif
 
 # Build wlan.ko as either prima_wlan.ko or pronto_wlan.ko
 ###########################################################
@@ -80,10 +82,14 @@ KBUILD_OPTIONS += MODNAME=wlan
 KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 KBUILD_OPTIONS += $(WLAN_SELECT)
 
+
+VERSION=$(shell grep -w "VERSION =" $(TOP)/kernel/Makefile | sed 's/^VERSION = //' )
+PATCHLEVEL=$(shell grep -w "PATCHLEVEL =" $(TOP)/kernel/Makefile | sed 's/^PATCHLEVEL = //' )
+
 include $(CLEAR_VARS)
 LOCAL_MODULE              := $(WLAN_CHIPSET)_wlan.ko
 LOCAL_MODULE_KBUILD_NAME  := wlan.ko
-LOCAL_MODULE_TAGS         := debug
+LOCAL_MODULE_TAGS         := optional
 LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(TARGET_OUT)/lib/modules/$(WLAN_CHIPSET)
 include $(DLKM_DIR)/AndroidKernelModule.mk
@@ -95,11 +101,11 @@ $(shell mkdir -p $(TARGET_OUT)/lib/modules; \
                $(TARGET_OUT)/lib/modules/wlan.ko)
 
 ifeq ($(WLAN_PROPRIETARY),1)
-$(shell mkdir -p $(TARGET_OUT_ETC)/firmware/wlan/prima; \
-        ln -sf /persist/WCNSS_qcom_wlan_nv.bin \
-        $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin; \
-        ln -sf /data/misc/wifi/WCNSS_qcom_cfg.ini \
-        $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_qcom_cfg.ini)
+#$(shell mkdir -p $(TARGET_OUT_ETC)/firmware/wlan/prima; \
+#        ln -sf /persist/WCNSS_qcom_wlan_nv.bin \
+#        $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin; \
+#        ln -sf /data/misc/wifi/WCNSS_qcom_cfg.ini \
+#        $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_qcom_cfg.ini)
 endif
 
 endif # DLKM check
